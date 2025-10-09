@@ -39,3 +39,13 @@
 
 # debug information files
 *.dwo
+
+# build files
+build/
+include/KHR/
+include/glad/
+include/imgui/
+include/glm/
+glad.c
+.cache/
+script.sh
