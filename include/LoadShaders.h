@@ -16,7 +16,8 @@ class ShaderProgram {
   void Use();
 
   GLuint GetID() const { return m_ProgramID; }
-
+  void SetInt(const std::string& name, int value);
+  
  private:
   GLuint m_ProgramID;
 
