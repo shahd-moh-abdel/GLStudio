@@ -26,7 +26,7 @@ class ShaderProgram {
   std::string readFile(const std::string& filePath);
   GLuint compileShader(GLenum type, const std::string& source);
   bool linkProgram(GLuint vertexShader, GLuint fragmentShader);
-  void checkCompileErrors();
+  void checkCompileErrors(GLuint shader, const std::string& type);
 };
 
 #endif

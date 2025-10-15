@@ -34,6 +34,9 @@ GLuint ShaderProgram::compileShader(GLenum type, const std::string& source)
   const char* src = source.c_str();
   glShaderSource(shader, 1, &src, nullptr);
   glCompileShader(shader);
+
+  std::string shaderType = (type == GL_VERTEX_SHADER) ? "VERTEX" : "FRAGMENT";
+  checkCompileErrors(shader, shaderType);
   
   return shader;
 }
@@ -47,8 +50,21 @@ bool ShaderProgram::linkProgram(GLuint vertexShader, GLuint fragmentShader)
 
   glDeleteShader(vertexShader);
   glDeleteShader(fragmentShader);
-
+ 
   return true;
+}
+
+void ShaderProgram::checkCompileErrors(GLuint shader, const std::string& type)
+{
+  GLint success;
+  GLchar infoLog[1024];
+
+  glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+  if (!success)
+    {
+      glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
+      std::cerr << "ERROR: in " << type << "\n" << infoLog << std::endl;
+    }
 }
 
 bool ShaderProgram::LoadFromFiles(const std::string& vertexPath,

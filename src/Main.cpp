@@ -15,7 +15,7 @@ int main()
   if (window == nullptr) return -1;
 
   ShaderProgram shader;
-  if (!shader.LoadFromFiles("../shaders/vertex.glsl", "../shaders/crt.glsl"))
+  if (!shader.LoadFromFiles("../shaders/vertex.glsl", "../shaders/pixelation.glsl"))
     {
       std::cerr << "Failed to load shaders" << std::endl;
       return -1;
