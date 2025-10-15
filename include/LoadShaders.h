@@ -17,6 +17,8 @@ class ShaderProgram {
 
   GLuint GetID() const { return m_ProgramID; }
   void SetInt(const std::string& name, int value);
+  void SetFloat(const std::string& name, float value);
+  void SetVec2(const std::string& name, float x, float y);
   
  private:
   GLuint m_ProgramID;
