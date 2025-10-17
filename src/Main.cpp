@@ -7,8 +7,6 @@
 #include "Quad.h"
 #include "LoadTexture.h"
 
-GLuint loadTexture(const char* path);
-
 int main()
 {
   GLFWwindow* window = WindowInit(800, 600);
