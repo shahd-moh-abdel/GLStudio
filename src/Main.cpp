@@ -1,12 +1,16 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <ostream>
 
 #include "WindowInit.h"
 #include "LoadShaders.h"
 #include "Quad.h"
 #include "LoadTexture.h"
+#include "stb_image.h"
+
+#include <cstdlib>
+#include <array>
+#include <memory>
 
 enum class Effect {
   NORMAL = 0,
@@ -14,8 +18,89 @@ enum class Effect {
   PIXELATION = 2
 };
 
-Effect currentEffect = Effect::PIXELATION;
-Effect previousEffect = Effect::PIXELATION;
+Effect currentEffect = Effect::NORMAL;
+Effect previousEffect = Effect::NORMAL;
+
+GLuint g_currentTexture = 0;
+GLFWwindow *g_window = nullptr;
+int g_imageWidth = 0;
+int g_imageHeight = 0;
+
+std::string OpenFileDialog()
+{
+  //zenity file dialog
+  std::array<char, 512> buffer;
+  std::string result;
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(
+    popen("zenity --file-selection --title='select an image' --file-filter='Images | *.jpg *jpeg *.png *.bmp'", "r"),
+    pclose
+    );
+
+  if (pipe)
+    {
+      while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+	{
+	  result += buffer.data();
+	}
+
+      if (!result.empty() && result.back() == '\n')
+	{
+	  result.pop_back();
+	}
+      return result;
+    }
+  return "";
+}
+
+bool GetImageDimensions(const std::string& path, int& width, int& height)
+{
+  stbi_set_flip_vertically_on_load_thread(false);
+  int channels;
+  unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, 0);
+
+  if (data)
+    {
+      stbi_image_free(data);
+      return true;
+    }
+  return false;
+}
+
+void LoadNewImage(const std::string& imagePath)
+{
+  if (imagePath.empty())
+    {
+      std::cout << "No image selected" << std::endl;
+      return;
+    }
+
+  int width, height;
+  if (!GetImageDimensions(imagePath, width, height))
+    {
+      std::cerr << "failed to get image dimentions:" << imagePath << std::endl;
+      return;
+    }
+
+  if (g_currentTexture != 0)
+      LoadTexture::DeleteTexture(g_currentTexture);
+
+
+  GLuint newTexture = LoadTexture::LoadFromFile(imagePath);
+  if (newTexture == 0)
+    {
+      std::cerr << "failed to load image:"<< imagePath << std::endl;
+      return;
+    }
+
+  g_currentTexture = newTexture;
+  g_imageWidth = width;
+  g_imageHeight = height;
+
+  glfwSetWindowSize(g_window, width, height);
+  glViewport(0, 0, width, height);
+
+  std::cout << "loaded image: " << imagePath << std::endl;
+}
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -32,6 +117,12 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	case GLFW_KEY_2:
 	  currentEffect = Effect::PIXELATION;
 	  break;
+	case GLFW_KEY_U:
+	  {
+	    std::string imagePath = OpenFileDialog();
+	    LoadNewImage(imagePath);
+	  }
+	  break;
 	case GLFW_KEY_ESCAPE:
 	  glfwSetWindowShouldClose(window, true);
 	  break;
@@ -42,10 +133,22 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 
 int main()
 {
-  GLFWwindow* window = WindowInit(800, 600);
-  if (window == nullptr) return -1;
+  std::string initialImagePath = "../images/test.jpg";
+  int initialWidth = 800;
+  int initialHeight = 600;
 
-  glfwSetKeyCallback(window, keyCallback);
+  if (GetImageDimensions(initialImagePath, initialWidth, initialHeight))
+    {
+      g_imageWidth = initialWidth;
+      g_imageHeight = initialHeight;
+
+      std::cout << "initial image dimensions: " << initialWidth << initialHeight << std::endl;
+    }
+  
+  g_window = WindowInit(g_imageWidth, g_imageHeight);
+  if (g_window == nullptr) return -1;
+
+  glfwSetKeyCallback(g_window, keyCallback);
   
   ShaderProgram normalShader;
   if (!normalShader.LoadFromFiles("../shaders/vertex.glsl", "../shaders/frag.glsl"))
@@ -70,10 +173,10 @@ int main()
 
   Quad quad;
 
-  GLuint texture = LoadTexture::LoadFromFile("../images/test.jpg");
-  if (texture == 0)
+  g_currentTexture =  LoadTexture::LoadFromFile(initialImagePath);
+  if (g_currentTexture == 0)
     {
-      std::cerr << "failed to load image" << std::endl;
+      std::cerr << "failed to load initial image" << std::endl;
       return -1;
     }
 
@@ -88,13 +191,16 @@ int main()
   
   float time = 0.0f;
   
-  while(!glfwWindowShouldClose(window))
+  while(!glfwWindowShouldClose(g_window))
     {
       time = (float)glfwGetTime();
       
       glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);   
+      glClear(GL_COLOR_BUFFER_BIT);
 
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, g_currentTexture);
+      
       ShaderProgram* activeShader = nullptr;
 
       switch (currentEffect)
@@ -114,16 +220,16 @@ int main()
 	{
 	  activeShader->Use();
 	  activeShader->SetFloat("uTime", time);
-	  activeShader->SetVec2("uResolution", 800.0f, 600.0f);
+	  activeShader->SetVec2("uResolution", (float)g_imageWidth, (float)g_imageHeight);
 	}
       
       quad.Draw();
       
-      glfwSwapBuffers(window);
+      glfwSwapBuffers(g_window);
       glfwPollEvents();
     }
 
-  LoadTexture::DeleteTexture(texture);
+  LoadTexture::DeleteTexture(g_currentTexture);
   glfwTerminate();
   return 0;
 }
